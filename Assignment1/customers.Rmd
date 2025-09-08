@@ -1,0 +1,39 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+#Analysis of customers dataset in R
+##By Hemani Panchmatiya
+###Sourcehttps://www.dropbox.com/scl/fo/45lcneythphg2599c1m4y/AKLCamW2WbIKfdYwe6ymHyE?rlkey=h2rb93sbmku47pdq4xwutva8i&e=1&dl=0
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r customers}
+customers <- read.csv("customers.csv")
+str(customers)
+summary(customers[, c("HouseholdSize", "Income", "Spending2017", "Spending2018", "NumOfOrders", "DaysSinceLast")])
+table(customers$Sex)
+table(customers$Race)
+table(customers$College)
+table(customers$Satisfaction)
+table(customers$Channel)
+customers$SatBinary <- ifelse(customers$Satisfaction %in% c("Very Satisfied", "Somewhat Satisfied"),
+                              "Satisfied", "Not Satisfied")
+hist(customers$Income,
+     main = "Histogram of Income",
+     xlab = "Income", col = "skyblue", border = "black")
+plot(customers$Income, customers$Spending2018,
+     main = "Scatterplot of Income vs Spending2018",
+     xlab = "Income", ylab = "Spending2018", pch = 19, col = "darkgreen")
+```
+
+#The End
