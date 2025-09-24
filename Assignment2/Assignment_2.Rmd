@@ -1,0 +1,186 @@
+---
+title: "Assignment_2"
+author: "Hemani Panchmatiya"
+date: "2025-09-22"
+output:
+  word_document: default
+  html_document: default
+---
+
+#Introduction: This dataset is to predict the number of new customers who has accepted personal loan offered by the UnverisalBank. Following are the steps taken using K-NN
+
+#Load the packages
+```{r}
+library(class)
+library(caret)
+library(dplyr)
+library(ggplot2)
+```
+
+#Import dataset
+```{r}
+UniversalBank <- read.csv("UniversalBank.csv")
+```
+
+#Remove predictors ID and Zip code
+```{r}
+UniversalBank <- subset(UniversalBank, select = -c(ID, ZIP.Code))
+```
+
+#Transforming Categorical predictors to dummmies
+```{r}
+UniversalBank <- fastDummies::dummy_cols(UniversalBank, select_columns = "Education", remove_first_dummy = FALSE, remove_selected_columns = TRUE)
+```
+
+#seperate predictors (x) and target (Y- personal.loan) & Normalize the predictors 
+```{r}
+num_vars <- UniversalBank %>% select(-Personal.Loan)
+preproc <- preProcess(num_vars, method = c("center", "scale"))
+bank_norm <- predict(preproc, num_vars)
+head(bank_norm)
+```
+
+#CBind the file 
+```{r}
+bank_file <- cbind(bank_norm, Personal.Loan = UniversalBank$Personal.Loan)
+head(bank_file)
+```
+
+#Split the data into train and Validation  
+```{r}
+set.seed(456)
+Index_Train <- createDataPartition(bank_file$Personal.Loan, p=0.6, list = FALSE)
+Train <- bank_file[Index_Train, ]
+Valid <- bank_file[-Index_Train, ]
+```
+
+
+#Create new customer profile
+```{r}
+new_customer <- data.frame(Age=40, Experience=10, Income=84, Family=2,
+                           CCAvg=2, Mortgage=0, Securities.Account=0, CD.Account=0,
+                           Online=1, CreditCard=1,
+                           Education_1=0, Education_2=1, Education_3=0)
+```
+
+#Normalize new customer data 
+```{r}
+new_customer_norm <- predict(preproc, new_customer)
+head(new_customer_norm)
+```
+
+#KNN when K=1 
+```{r}
+customer_pred <- knn(train = Train %>% select(-Personal.Loan),
+                   test = new_customer_norm,
+                   cl = Train$Personal.Loan,
+                   k = 1)
+```
+
+#Prediction 
+```{r}
+cat("Prediction for new customer:", customer_pred , "\n")
+```
+
+#Define the k values to test
+```{r}
+k_values <- seq(1, 15, 2) 
+accuracy <- c()
+for(i in k_values){
+  pred_valid <- knn(
+    train = Train %>% select(-Personal.Loan),
+    test  = Valid %>% select(-Personal.Loan),
+    cl    = Train$Personal.Loan,
+    k     = i
+  )
+  conf_matrix <- confusionMatrix(pred_valid, factor(Valid$Personal.Loan))
+  accuracy <- c(accuracy, conf_matrix$overall["Accuracy"])
+}
+best_k <- k_values[which.max(accuracy)]
+cat("Best k:", best_k, "\n")
+cat("Validation accuracy for best k:", max(accuracy), "\n")
+```
+
+#Plot the best of K 
+```{r}
+plot(k_values, accuracy, type = "b", col = "blue", Xlab = "k_values", ylab= "accuracy")
+```
+
+#Confusion matrix of validation set using best of k
+```{r}
+  pred_valid <- knn(
+    train = Train %>% select(-Personal.Loan),
+    test  = Valid %>% select(-Personal.Loan),
+    cl    = Train$Personal.Loan,
+    k     = 3
+  )
+  conf_matrix <- confusionMatrix(pred_valid, factor(Valid$Personal.Loan))
+print(conf_matrix)
+```
+
+#Using best of K = 3 for new customer dataset
+```{r}
+customer_pred <- knn(train = Train %>% select(-Personal.Loan),
+                   test = new_customer_norm,
+                   cl = Train$Personal.Loan,
+                   k = 3)
+```
+
+#Prediction 
+```{r}
+cat("Prediction for new customer:", customer_pred , "\n")
+```
+
+#Spliting the data into Train (50%)   
+```{r}
+set.seed(456)
+Index_Train <- createDataPartition(bank_file$Personal.Loan, p=0.5, list = FALSE)
+Train <- bank_file[Index_Train, ]
+```
+
+#Spliting the data into Validation (30%) and test(20%)
+```{r}
+Remaining <- bank_file[-Index_Train, ]
+Index_valid <- createDataPartition(Remaining$Personal.Loan, p = 0.6, list = FALSE) 
+Test <- Remaining[-Index_valid, ]
+Valid <- Remaining[Index_valid, ]
+```
+
+#Prediction and confusion matrix using K = 3 on validation set 
+```{r}
+  pred_valid <- knn(
+    train = Train %>% select(-Personal.Loan),
+    test  = Valid %>% select(-Personal.Loan),
+    cl    = Train$Personal.Loan,
+    k     = 3
+  )
+  conf_matrix <- confusionMatrix(pred_valid, factor(Valid$Personal.Loan))
+print(conf_matrix)
+```
+
+#Prediction and confusion matrix using K = 3 on training set 
+```{r}
+  pred_valid <- knn(
+    train = Train %>% select(-Personal.Loan),
+    test  = Train %>% select(-Personal.Loan),
+    cl    = Train$Personal.Loan,
+    k     = 3
+  )
+  conf_matrix <- confusionMatrix(pred_valid, factor(Train$Personal.Loan))
+print(conf_matrix)
+```
+
+#Prediction and confusion matrix using K = 3 on test set 
+```{r}
+  pred_valid <- knn(
+    train = Train %>% select(-Personal.Loan),
+    test  = Test %>% select(-Personal.Loan),
+    cl    = Train$Personal.Loan,
+    k     = 3
+  )
+  conf_matrix <- confusionMatrix(pred_valid, factor(Test$Personal.Loan))
+print(conf_matrix)
+```
+
+##Summary: The accuracy is higher for training set (97.8%) while compared to validation (95.6%) and test (95.9%), likely because the model fits well on training data. Since the accuracy for validation and test is very similar, it indicates that the model generalizes well and is not overfitting. Also, sensitivity is higher for all three ( training, validation & test ) than of specificity, meaning that the classifier performs well in identifying the class with no loans and weaker in identifying class with loan customers. 
+
