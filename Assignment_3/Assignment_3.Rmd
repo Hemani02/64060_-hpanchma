@@ -1,0 +1,248 @@
+---
+title: "Assignment_3"
+author: "Hemani Panchmatiya"
+date: "2025-10-03"
+output:
+  word_document: default
+  html_document: default
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+#Introduction: This analysis is based on Universal Bank data set to predict loan acceptance of customers based on two factors : Credit card holding and Online banking user. Pivot tables are used to examine the frequencies, relationship of variables. Naive Bayes classifier helps in estimating the probabilities under assumptions of conditional independence. Comparing both methods help in understanding the accuracy of model and patterns in customer behavior.
+
+#Loading the packages
+
+```{r}
+library(caret)
+library(ISLR)
+library(e1071)
+library(ggplot2)
+library(readr)
+library(naivebayes)
+library(dplyr)
+library(pROC)
+```
+
+#Importing the dataset UniversalBank
+
+```{r}
+Mydata <- read_csv("C:/Users/panch/OneDrive/Desktop/FML Assignments/Assignmnet 2/UniversalBank.csv")
+```
+
+#Explore the dataset UniversalBank
+
+```{r}
+str(Mydata)
+```
+
+#Checking if the data has any missing values
+
+```{r}
+sum(is.na(Mydata))
+```
+
+#Splitting the data into Training (60%) and validation(40%)
+
+```{r}
+set.seed(123)
+train_index <- createDataPartition(Mydata$`Personal Loan`, p = 0.6, list = FALSE)
+train_data <- Mydata[train_index, ]
+valid_data <- Mydata[-train_index, ]
+nrow(train_data)
+nrow(valid_data)
+```
+
+#A: Create a pivot table for the training data with Online as a column variable, CC as a row variable, and Loan as a secondary row variable using table function in R.
+
+#Creating Pivot table using function table()
+
+```{r}
+Pivottable <- ftable(train_data$CreditCard, train_data$`Personal Loan`, train_data$Online)
+Pivottable
+```
+
+#Insights: A pivot table is created using ftable(). The rows represents whether the customers has a credit card, secondary row represents personal loan and column represents whether the customer is using online banking.
+
+#B: Task to classify a customer who owns a bank Credit Card and is active online user, probability of customer accepting the loan.
+
+#Setting predictors Personal Loan, CreditCard and Online
+
+```{r}
+Mydata_table <- train_data[c("Personal Loan","CreditCard","Online")]
+Mydata_table
+```
+#Create a pivot table with loan, Credit Card and online variables
+
+```{r}
+Object1 <- ftable(Mydata_table)
+Object1
+```
+
+#Creating a pivot table only for credit card and Online variables.
+
+```{r}
+Object2 <- ftable(Mydata_table[,-1])
+Object2
+```
+
+#Probability when Personal Loan = 1 , cc = 1 & online = 1
+
+```{r}
+prob <- Object1[4,2]/Object2[2,2] 
+prob
+```
+
+#Insights : Using the above pivot tables, probability of customers who owns a credit card and is an active online banking user will accept loan. Number of customers with credit card = 1, Online = 1 and Personal Loan = 1 divided by total number of customers with credit card = 1 and Online = 1. The probability is 10.7% using training data set.
+
+#C: Create two separate pivot tables for the training data. One will have Loan (rows) as a function of Online (columns) and the other will have Loan (rows) as a function of CC.
+
+#Creating pivot table where Loan (rows) and Online (Columns)
+
+```{r}
+Pivottable1 <- ftable(Mydata_table[,-2])
+Pivottable1
+```
+
+#Creating Pivot table where Loan(rows) and CC(Columns)
+
+```{r}
+Pivottable2 <- ftable(Mydata_table[,-3])
+Pivottable2
+```
+
+#D: Compute the following quantities [P(A \| B) means “the probability ofA given B”]: #P(CC = 1 \| Loan = 1) (the proportion of credit card holders among the loan acceptors) ##P(Online = 1 \| Loan = 1) ###P(Loan= 1) (the proportion of loan acceptors) ####P(CC = 1 \| Loan = 0)
+#####P(Online = 1 \| Loan = 0) ######P(Loan = 0)
+
+#Total Observations
+
+```{r}
+TotalCustomer <- nrow(Mydata_table)
+```
+
+#Total number of customer accepted or rejected the loan (0 = NO, 1 = Yes)
+
+```{r}
+Loanaccepted1 <- sum(Mydata_table$`Personal Loan` == 1)
+Loanaccepted2 <- sum(Mydata_table$`Personal Loan` == 0)
+```
+
+#Probability of credit card holder among the loan acceptors. P(CC = 1 \| Loan = 1)
+
+```{r}
+Probability1 <- sum(Mydata_table$CreditCard == 1 & Mydata_table$`Personal Loan` == 1)/Loanaccepted1
+Probability1
+```
+
+#Probability of Online customers among the loan acceptors P(Online = 1 \| Loan = 1)
+
+```{r}
+Onlineprobability <- sum(Mydata_table$Online == 1 & Mydata_table$`Personal Loan` ==1)/Loanaccepted1
+Onlineprobability
+```
+
+#Probability of loan acceptors P(Loan = 1)
+
+```{r}
+Loanprobability <- Loanaccepted1 / TotalCustomer
+Loanprobability
+```
+
+#Probability of credit card holder among the loan rejectors P(CC = 1 \| Loan = 0)
+
+```{r}
+Probability2 <- sum(Mydata_table$CreditCard == 1 & Mydata_table$`Personal Loan` == 0)/Loanaccepted2
+Probability2
+```
+
+#Probability of Online customer among the loan rejectors P(Online = 1 \| Loan = 0)
+
+```{r}
+Onlineprobability1 <- sum(Mydata_table$Online == 1 & Mydata_table$`Personal Loan` ==0)/Loanaccepted2
+Onlineprobability1
+```
+
+#Probability of loan rejectors P(Loan = 0)
+
+```{r}
+Loanprobability1 <- Loanaccepted2 / TotalCustomer
+Loanprobability1
+```
+
+#E: Use the quantities computed above to compute the naive Bayes probability P(Loan = 1 \| C= 1, Online = 1)
+
+#Computing Naive Bayes probability by manual calculation
+
+```{r}
+numerator <- (Probability1 * Onlineprobability * Loanprobability) #(0.327 * 0.643 * 0.092)
+denominator <- (Probability1 * Onlineprobability * Loanprobability) + (Probability2 * Onlineprobability1 * Loanprobability1) #(0.327 * 0.643 * 0.092) + (0.290 * 0.595 * 0.907)
+
+nb_probability <- numerator / denominator
+nb_probability
+```
+
+#Insights : Using the probabilities computed above, naive bayes isestimated. This formula assumes that Credit Card and Online areconditionally independent given loan. The probability estimated is 11.05%.
+
+#F: Compare this value with the one obtained from the pivot table in(B). Which is a more accurate estimate?
+
+#Response Answer for F: The probability obtained from Pivot table(B) is 0.1071429 (10.7%) and Naive Bayes probability p(Loan = 1 \| CC= 1, Online = 1) is 0.1105637(11.05%). The Pivot table probability is more accurate because it is directly based on observed counts from the training data set, reflecting the actual distribution of data. The Naive Bayes probability is an estimate value based on the assumption that variable Credit Card and Online are conditionally independent given Loan. This assumption may not hold properly in real data, leading to differences in result.
+
+#G: Which of the entries in this table are needed for computing P(Loan = 1 \| CC = 1, Online = 1)? Run naive Bayes on the data. Examine the model output on training data, and find the entry that corresponds to P(Loan = 1 \| CC = 1, Online = 1). Compare this to the number you obtained in (E).
+
+##Correcting the column name "Personal Loan" to Personal Loan and partitioning the data
+```{r}
+set.seed(123)
+Mydata$PersonalLoan <- Mydata$`Personal Loan`
+Mydata <- Mydata %>% select(-'Personal Loan')
+train_index <- sample(1:nrow(Mydata), 0.6 * nrow(Mydata))
+train_data <- Mydata[train_index, ]
+validation_data <- Mydata[-train_index, ]
+```
+
+#Converting the categorical variables to factors ( Personal Loan,Credit Card, Online ) for training set 
+```{r}
+train_data$CreditCard <- factor(train_data$CreditCard, levels = c(0,1))
+train_data$Online <- factor(train_data$Online, levels = c(0,1))
+train_data$PersonalLoan <- factor(train_data$PersonalLoan, levels = c(0,1))
+```
+
+## Build Naive Bayes model on training data
+```{r}
+nb_model <- naive_bayes(PersonalLoan ~ CreditCard + Online, data = train_data)
+```
+
+#Creating a data frame for variables credit card and Online with factor levels (0,1)
+```{r}
+prob_train <- data.frame(
+  CreditCard = factor(1, levels = c(0,1)),
+  Online = factor(1, levels = c(0,1))
+)
+```
+
+#Predicting the probability for credit card and Online customers on training set
+```{r}
+nb_prob <- predict(nb_model, prob_train, type = "prob")
+nb_prob
+```
+#Converting the categorical variables to factors ( Personal Loan,Credit Card, Online ) for Validation set 
+```{r}
+validation_data$CreditCard <- factor(validation_data$CreditCard, levels = c(0,1))
+validation_data$Online <- factor(validation_data$Online, levels = c(0,1))
+validation_data$PersonalLoan <- factor(validation_data$PersonalLoan, levels = c(0,1))
+```
+
+#Creating a data frame for variables credit card and Online with factor levels (0,1)
+```{r}
+prob_valid <- data.frame(
+  CreditCard = factor(1, levels = c(0,1)),
+  Online = factor(1, levels = c(0,1))
+)
+```
+
+#Predicting the probability for credit card and Online customers on validation set
+```{r}
+nb_prob1 <- predict(nb_model, prob_valid, type = "prob")
+nb_prob1
+```
+#Insights : After apply the naive bayes classifier, the predicted probability of customer with CreditCard = 1, Online = 1 is 11.05% which matches with the manual calculation.
