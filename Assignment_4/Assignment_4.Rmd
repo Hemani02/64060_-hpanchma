@@ -1,0 +1,145 @@
+---
+title: "Assignment_4"
+author: "Hemani Panchmatiya"
+date: "2025-10-14"
+output:
+  word_document: default
+  html_document: default
+---
+
+Introduction: In this assignment we have applied K-Means clustering an unsupervised learning technique to segment 21 Pharmaceutical firms with 9 numerical financial variables. By grouping firms into cluster, we identify financial profile, assets market perception and gain insights. The analysis also explores median recommendation, location and exchange to provide investor market positioning. Each cluster is assigned a descriptive name reflecting the characteristic, interpretation and decision-making.
+
+#Loading the packages
+
+```{r}
+library(dplyr)
+library(factoextra)
+library(cluster)
+library(ggplot2)
+library(flexclust)
+```
+
+#Import data set
+
+```{r}
+Pharma <- read.csv("Pharmaceuticals.csv")
+```
+
+#View the sturcture
+
+```{r}
+str(Pharma)
+```
+
+Question A: Use only the numerical variables (1 to 9) to cluster the 21 firms. Justify the various choices made in conducting the cluster analysis, such as weights for different variables, the specific clustering algorithm(s) used, the number of clusters formed, and so on.
+
+#Select only numerical variables 1–9
+
+```{r}
+Pharma_num <- Pharma[, 3:11]
+```
+
+#Standardizing/scale the data using Z- Score
+
+```{r}
+Pharma_scaled <- scale(Pharma_num)
+```
+
+#Determing the optimal K #Elbow Method
+
+```{r}
+fviz_nbclust(Pharma_scaled, kmeans, method = "wss") +
+  ggtitle("Elbow Method for Optimal k")
+
+```
+
+#Silhouette Method
+
+```{r}
+fviz_nbclust(Pharma_scaled, kmeans, method = "silhouette") +
+  ggtitle("silhouette Method for Optimal k")
+```
+
+#Running K-means algorithm to cluster the dataset. We will choose an initial value of k = 5 identified through Silhouette Method
+
+```{r}
+set.seed(789)
+k5 <- kmeans(Pharma_scaled, centers = 5, nstart = 25) # k = 5, number of restarts = 25
+
+k5$centers # output the centers
+
+k5$size # Number of cars in each cluster
+
+#Identify the cluster of the 1-21st observation as an example
+k5$cluster[1:21]
+
+#Visualize the output
+
+fviz_cluster(k5, data = Pharma_scaled) 
+```
+
+#Assign clusters to dataset
+
+```{r}
+Pharma$clusters <- k5$cluster
+```
+
+#View the sturcture
+
+```{r}
+str(Pharma)
+```
+
+#Questions B: Interpret the clusters with respect to the numerical variables used in forming the clusters.
+
+Answer: The k-means clustering of the pharmaceutical firms resulted in five groups with distinct financial characteristics. Cluster 1 is characterized by a high price-to-earnings (PE) ratio relative to other variables such as Market Cap, Beta, ROE, ROA, Asset Turnover, Leverage, Revenue Growth, and Net Profit Margin, suggesting that these firms may be highly valued relative to earnings despite modest growth. Cluster 2 exhibits high revenue growth compared to other variables, indicating a focus on expansion, but these firms have low efficiency and profitability. Cluster 3 has above-average net profit margins, along with higher ROE and ROA, reflecting profitable and operationally efficient mid-sized companies with moderate growth. Cluster 4 is defined by very high leverage relative to other variables, representing small, high-risk firms with low profitability. Finally, Cluster 5 has high market capitalization, combined with strong profitability, moderate growth, and conservative leverage, representing large, mature, low-risk firms. Collectively, these clusters highlight the diversity of size, profitability, growth, efficiency, and financial risk among pharmaceutical firms.
+
+#Cluster-wise mean of numerical variables
+
+```{r}
+clusters_summary <- Pharma %>%
+  group_by(clusters) %>%
+  summarise(across(Market_Cap:Net_Profit_Margin, mean, .names = "mean_{.col}"))
+print(clusters_summary)
+```
+
+#Question C: Is there a pattern in the clusters with respect to the numerical variables (10 to 12)? (those not used in forming the clusters)
+
+```{r}
+# Median Recommendation distribution by cluster
+table(Pharma$cluster, Pharma$Median_Recommendation)
+ 
+# Location distribution by cluster
+table(Pharma$cluster, Pharma$Location)
+ 
+# Exchange distribution by cluster
+table(Pharma$cluster, Pharma$Exchange)
+```
+
+#Insights: Cluster 3 shows the strongest market confidence under Median Recommendation, with most firms receiving “Buy” or “Strong Buy” ratings. These firms are primarily located in the US, UK, and Switzerland, and are listed on the NYSE, reflecting their established and reputable market presence. Clusters 1 and 4 indicate investor caution due to modest growth or high leverage, respectively. Cluster 1 includes firms based in the US and Germany and is distributed across AMEX, NASDAQ, and NYSE, suggesting diversity in firm size and maturity. Cluster 4 firms are primarily from the US and listed on the NYSE, representing small but high-risk firms. Cluster 2 exhibits mixed market recommendations, reflecting the volatility and uncertainty typical of rapidly growing firms. Its members are spread across France, Ireland, and the US, and are listed on the NYSE, aligning with their expansion-oriented nature. Cluster 5 also demonstrates strong market confidence, consisting of large, stable firms located in Canada and the US, all listed on the NYSE, highlighting their mature and low-risk profiles.
+
+#Question D: Provide an appropriate name for each cluster using any or all of the variables in the data set. #Assign descriptive cluster names
+
+```{r}
+cluster_names <- c(
+  "High PE, Modest Growth Firms",   # Cluster 1
+  "Fast-Growing Startups",          # Cluster 2
+  "Profitable Mid-Size Firms",      # Cluster 3
+  "High-Risk Leveraged Firms",      # Cluster 4
+  "Large, Mature Market Leaders"    # Cluster 5
+)
+Pharma$Cluster_Name <- cluster_names[as.numeric(Pharma$clusters)]
+head(Pharma)
+```
+
+#Insights: Cluster 1 – High PE, Modest Growth Firms: High price-to-earnings ratios indicate strong investor expectations despite limited growth.
+
+Cluster 2 – Fast-Growing Start ups: Rapid revenue growth with lower efficiency and profitability, typical of early-stage firms.
+
+Cluster 3 – Profitable Mid-Size Firms: Mid-sized firms with strong profitability, returns, and balanced growth.
+
+Cluster 4 – High-Risk Leveraged Firms: Small firms with high debt and low profitability, indicating financial risk.
+
+Cluster 5 – Large, Mature Market Leaders: Well-established, financially strong firms with high market capitalization and low leverage.
+
+#Summary: The five clusters collectively highlight the structural diversity of the pharmaceutical industry. Firms range from high-risk, growth-oriented start ups to financially stable market leaders. This segmentation reflects differences in profitability, leverage, growth strategy, and risk, providing a clear understanding of competitive positioning within the sector.
